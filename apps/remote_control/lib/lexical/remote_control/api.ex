@@ -33,6 +33,10 @@ defmodule Lexical.RemoteControl.Api do
     ])
   end
 
+  def toggle_one_line(%Project{} = project, %Document{} = document, %Position{} = position) do
+    RemoteControl.call(project, CodeMod.ToggleOneLine, :edits, [document, position])
+  end
+
   def complete(%Project{} = project, %Document{} = document, %Position{} = position) do
     document_string = Document.to_string(document)
     complete(project, document_string, position)

@@ -53,6 +53,45 @@ defmodule Lexical.AstTest do
     end
   end
 
+  describe "surround_zipper/2" do
+    test "returns the zipper focused on the surround node" do
+      text = ~q<
+        defmodule Foo do
+          def foo(%{list: [|]}, val, _) do
+            {:foo_res, val}
+          end
+
+          def bar(%{list: []}, val, _) do
+            {:bar_res, val}
+          end
+        end
+      >
+
+      pos = cursor_position(text)
+      text = strip_cursor(text)
+      doc = Document.new("file:///file.ex", text, 0)
+
+      assert {:ok, zipper} = Ast.surround_zipper(doc, pos)
+
+      assert {:__block__, _, [[]]} = Zipper.node(zipper)
+
+      assert {:def, _,
+              [
+                {:foo, _,
+                 [
+                   {:%{}, _, [{{:__block__, _, [:list]}, {:__block__, _, [[]]}}]},
+                   {:val, _, nil},
+                   {:_, _, nil}
+                 ]},
+                [
+                  {{:__block__, _, [:do]},
+                   {:__block__, _, [{{:__block__, _, [:foo_res]}, {:val, _, nil}}]}}
+                ]
+              ]} =
+               zipper |> Zipper.up() |> Zipper.up() |> Zipper.up() |> Zipper.up() |> Zipper.node()
+    end
+  end
+
   describe "traverse_line" do
     setup do
       text = ~q[

@@ -215,6 +215,38 @@ defmodule Lexical.Ast do
   end
 
   @doc """
+  Returns the zipper focused on the surround node of the document at a position.
+  """
+  @spec surround_zipper(
+          Document.t() | Macro.t(),
+          Position.t() | {Position.line(), Position.character()}
+        ) ::
+          [Macro.t()]
+  def surround_zipper(%Document{} = doc, {line, character}) do
+    surround_zipper(doc, Position.new(doc, line, character))
+  end
+
+  def surround_zipper(%Document{} = doc, %Position{} = pos) do
+    with {:ok, ast} <- from(doc) do
+      pos = {pos.line, pos.character}
+
+      ast
+      |> Zipper.zip()
+      |> Zipper.traverse({:error, :not_found}, fn zipper, res ->
+        case Zipper.node(zipper) do
+          {_, _, _} = node ->
+            range = Sourceror.get_range(node)
+            if within_range?(pos, range), do: {zipper, {:ok, zipper}}, else: {zipper, res}
+
+          _ ->
+            {zipper, res}
+        end
+      end)
+      |> then(fn {_, res} -> res end)
+    end
+  end
+
+  @doc """
   Traverses the given ast until the given end position.
   """
   def prewalk_until(
@@ -520,19 +552,26 @@ defmodule Lexical.Ast do
     end
   end
 
-  defp within_range?({current_line, current_column}, %Document.Range{} = range) do
-    start_pos = %Document.Position{} = range.start
-    end_pos = %Document.Position{} = range.end
+  defp within_range?(pos, %Document.Range{} = range) do
+    within_range?(pos, %{
+      start: [line: range.start.line, column: range.start.character],
+      end: [line: range.end.line, column: range.end.character]
+    })
+  end
 
+  defp within_range?({line, column}, range) do
     cond do
-      current_line == start_pos.line ->
-        current_column >= start_pos.character
+      line == range.start[:line] and line == range.end[:line] ->
+        column >= range.start[:column] and column <= range.end[:column]
 
-      current_line == end_pos.line ->
-        current_column <= end_pos.character
+      line == range.start[:line] ->
+        column >= range.start[:column]
+
+      line == range.end[:line] ->
+        column <= range.end[:column]
 
       true ->
-        current_line >= start_pos.line and current_line <= end_pos.line
+        line >= range.start[:line] and line <= range.end[:line]
     end
   end
 

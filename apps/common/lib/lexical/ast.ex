@@ -233,17 +233,24 @@ defmodule Lexical.Ast do
       ast
       |> Zipper.zip()
       |> Zipper.traverse({:error, :not_found}, fn zipper, res ->
-        case Zipper.node(zipper) do
-          {_, _, _} = node ->
-            range = Sourceror.get_range(node)
-            if within_range?(pos, range), do: {zipper, {:ok, zipper}}, else: {zipper, res}
-
-          _ ->
-            {zipper, res}
+        with {_, _, _} = node <- Zipper.node(zipper),
+             {:ok, range} <- fetch_range(node),
+             true <- within_range?(pos, range) do
+          {zipper, {:ok, zipper}}
+        else
+          _ -> {zipper, res}
         end
       end)
       |> then(fn {_, res} -> res end)
     end
+  end
+
+  defp fetch_range(node) do
+    # FIXME Find out why sourceror fails and fix it upstream
+    range = Sourceror.get_range(node)
+    {:ok, range}
+  rescue
+    _ -> :error
   end
 
   @doc """

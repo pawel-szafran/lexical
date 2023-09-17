@@ -58,34 +58,51 @@ defmodule Lexical.RemoteControl.CodeMod.ToggleOneLine do
   end
 
   defp transform(
-         {:def, def_opts,
+         {fun_def, _def_opts,
           [
-            {fun_name, fun_opts, fun_args},
-            [{{:__block__, block_opts, [:do]}, {:__block__, do_block_opts, [do_block_exp]}}]
-          ]}
-       ) do
-    if Keyword.has_key?(def_opts, :do) do
-      {:ok,
-       {:def, Keyword.drop(def_opts, ~w(do end)a),
-        [
-          {fun_name, fun_opts, fun_args},
+            {_fun_name, _fun_opts, _fun_args},
+            [{{:__block__, _block_opts, [:do]}, {_, _, [_one_elem_body]}}]
+          ]} = node
+       )
+       when fun_def in [:def, :defp] do
+    toggle_fun_def(node)
+  end
+
+  defp transform(
+         {fun_def, _def_opts,
           [
-            {{:__block__, Keyword.put(block_opts, :format, :keyword), [:do]},
-             {:__block__, do_block_opts, [do_block_exp]}}
-          ]
-        ]}}
-    else
-      {:ok,
-       {:def, Keyword.merge(def_opts, do: [], end: []),
-        [
-          {fun_name, fun_opts, fun_args},
-          [
-            {{:__block__, Keyword.delete(block_opts, :format), [:do]},
-             {:__block__, do_block_opts, [do_block_exp]}}
-          ]
-        ]}}
-    end
+            {_fun_name, _fun_opts, _fun_args},
+            [{{:__block__, _block_opts, [:do]}, {:|>, _, _}}]
+          ]} = node
+       )
+       when fun_def in [:def, :defp] do
+    toggle_fun_def(node)
   end
 
   defp transform(_), do: {:error, :not_applicable}
+
+  defp toggle_fun_def(
+         {fun_def, def_opts,
+          [
+            {fun_name, fun_opts, fun_args},
+            [{{:__block__, block_opts, [:do]}, body}]
+          ]}
+       )
+       when fun_def in [:def, :defp] do
+    if Keyword.has_key?(def_opts, :do) do
+      {:ok,
+       {fun_def, Keyword.drop(def_opts, ~w(do end)a),
+        [
+          {fun_name, fun_opts, fun_args},
+          [{{:__block__, Keyword.put(block_opts, :format, :keyword), [:do]}, body}]
+        ]}}
+    else
+      {:ok,
+       {fun_def, Keyword.merge(def_opts, do: [], end: []),
+        [
+          {fun_name, fun_opts, fun_args},
+          [{{:__block__, Keyword.delete(block_opts, :format), [:do]}, body}]
+        ]}}
+    end
+  end
 end

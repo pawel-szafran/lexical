@@ -58,7 +58,7 @@ defmodule Lexical.RemoteControl.CodeMod.ToggleOneLineTest do
   end
 
   describe "function definition" do
-    test "toggles small functions" do
+    test "toggles with args and tuple" do
       assert_toggle(
         """
           d|ef foo(%{elems: []}, val, _) do
@@ -69,6 +69,83 @@ defmodule Lexical.RemoteControl.CodeMod.ToggleOneLineTest do
           d|ef foo(%{elems: []}, val, _), do: {:ok, val}
         """
       )
+    end
+
+    test "toggles when private" do
+      assert_toggle(
+        """
+          d|efp foo(%{elems: []}, val, _) do
+            {:ok, val}
+          end
+        """,
+        """
+          d|efp foo(%{elems: []}, val, _), do: {:ok, val}
+        """
+      )
+    end
+
+    test "toggles without args" do
+      assert_toggle(
+        """
+          d|ef foo do
+            {:ok, val}
+          end
+        """,
+        """
+          d|ef foo, do: {:ok, val}
+        """
+      )
+    end
+
+    test "toggles with fun call" do
+      assert_toggle(
+        """
+          d|ef foo(val) do
+            bar(val)
+          end
+        """,
+        """
+          d|ef foo(val), do: bar(val)
+        """
+      )
+    end
+
+    test "toggles with external fun call" do
+      assert_toggle(
+        """
+          d|ef foo(val) do
+            String.downcase(val)
+          end
+        """,
+        """
+          d|ef foo(val), do: String.downcase(val)
+        """
+      )
+    end
+
+    test "toggles with a pipe" do
+      assert_toggle(
+        """
+          d|ef foo(val) do
+            val |> String.trim() |> String.downcase()
+          end
+        """,
+        """
+          d|ef foo(val), do: val |> String.trim() |> String.downcase()
+        """
+      )
+    end
+
+    test "doesn't toggle when multi-line" do
+      code =
+        normalize_code("""
+          d|ef foo(val) do
+            val = String.trim(val)
+            String.downcase(val)
+          end
+        """)
+
+      assert :error = modify(code.code, cursor: code.cursor, trim: false)
     end
   end
 

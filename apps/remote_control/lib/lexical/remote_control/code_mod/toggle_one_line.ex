@@ -57,29 +57,28 @@ defmodule Lexical.RemoteControl.CodeMod.ToggleOneLine do
     Ast.patch_to_edit(document, patch)
   end
 
-  defp transform(
-         {fun_def, _def_opts,
-          [
-            {_fun_name, _fun_opts, _fun_args},
-            [{{:__block__, _block_opts, [:do]}, {_, _, [_one_elem_body]}}]
-          ]} = node
-       )
-       when fun_def in [:def, :defp] do
-    toggle_fun_def(node)
-  end
-
-  defp transform(
-         {fun_def, _def_opts,
-          [
-            {_fun_name, _fun_opts, _fun_args},
-            [{{:__block__, _block_opts, [:do]}, {:|>, _, _}}]
-          ]} = node
-       )
-       when fun_def in [:def, :defp] do
+  defp transform({fun_def, _def_opts, _children} = node) when fun_def in [:def, :defp] do
     toggle_fun_def(node)
   end
 
   defp transform(_), do: {:error, :not_applicable}
+
+  {{:., [line: 2, column: 9],
+    [
+      {:__aliases__, [last: [line: 2, column: 5], line: 2, column: 5], [:Enum]},
+      :map
+    ]}, [closing: [line: 2, column: 26], line: 2, column: 10],
+   [
+     {:list, [line: 2, column: 14], nil},
+     {:&, [line: 2, column: 20],
+      [
+        {:/, [line: 2, column: 24],
+         [
+           {:bar, [line: 2, column: 21], nil},
+           {:__block__, [token: "1", line: 2, column: 25], [1]}
+         ]}
+      ]}
+   ]}
 
   defp toggle_fun_def(
          {fun_def, def_opts,
@@ -90,6 +89,9 @@ defmodule Lexical.RemoteControl.CodeMod.ToggleOneLine do
        )
        when fun_def in [:def, :defp] do
     if Keyword.has_key?(def_opts, :do) do
+      # range: %{end: [line: 3, column: 25], start: [line: 2, column: 5]}
+      Ast.get_range(body)
+
       {:ok,
        {fun_def, Keyword.drop(def_opts, ~w(do end)a),
         [

@@ -136,6 +136,19 @@ defmodule Lexical.RemoteControl.CodeMod.ToggleOneLineTest do
       )
     end
 
+    test "toggles with when clause" do
+      assert_toggle(
+        """
+          d|efp foo(list) when is_list(list) do
+            Enum.map(list, &bar/1)
+          end
+        """,
+        """
+          d|efp foo(list) when is_list(list), do: Enum.map(list, &bar/1)
+        """
+      )
+    end
+
     test "doesn't toggle when multi-line" do
       code =
         normalize_code("""

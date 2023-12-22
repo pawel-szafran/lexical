@@ -245,7 +245,7 @@ defmodule Lexical.Ast do
     end
   end
 
-  defp fetch_range(node) do
+  def fetch_range(node) do
     # FIXME Find out why sourceror fails and fix it upstream
     range = Sourceror.get_range(node)
     {:ok, range}
